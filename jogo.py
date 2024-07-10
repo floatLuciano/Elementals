@@ -5,6 +5,7 @@ from PPlay.gameimage import *
 
 def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, velocidade_y, no_chao, delta_time):
     andou = False
+    estado_anterior_no_chao = no_chao
 
     # Verificação de colisão com a plataforma
     if (personagem.collided_perfect(plataforma1) == False) and (personagem.collided_perfect(plataforma2) == False):
@@ -15,10 +16,7 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
     # Verificação adicional de coordenadas
     if personagem.y >= 165 and personagem.x <= 103:
         no_chao = False
-    if no_chao==True and personagem.get_curr_frame()==23:
-        personagem.set_curr_frame(8)
-    if no_chao==True and personagem.get_curr_frame()==19:
-        personagem.set_curr_frame(0)
+
     # Controle do movimento horizontal e ataque
     if teclado.key_pressed(keys["right"]) and not atacando:
         personagem.move_x(velocidade * delta_time)
@@ -87,7 +85,23 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
     else:
         if andou:
             personagem.update()
-    #print(f'X: {personagem.x}, Y: {personagem.y}, No Chão: {no_chao}')
+
+    # Ajusta a animação quando o personagem aterrissa
+    if no_chao and not estado_anterior_no_chao:
+        if virado == "RIGHT":
+            personagem.set_curr_frame(0)
+        elif virado == "LEFT":
+            personagem.set_curr_frame(8)
+        if teclado.key_pressed(keys["right"]) and not atacando:
+            personagem.set_sequence(0, 7, True)
+            personagem.set_total_duration(1500)
+            personagem.play()
+        elif teclado.key_pressed(keys["left"]) and not atacando:
+            personagem.set_sequence(8, 15, True)
+            personagem.set_total_duration(1500)
+            personagem.play()
+
+    # print(f'X: {personagem.x}, Y: {personagem.y}, No Chão: {no_chao}')
     return virado, direcao, atacando, velocidade_y, no_chao
 
 janela = Window(800, 400)
@@ -98,6 +112,7 @@ plataforma1 = Sprite("./Assets/plataforma1_principal.png")
 plataforma1.set_position(janela.width / 2 - 140, janela.height - 110)
 plataforma2 = Sprite ("./Assets/plataforma1_menor.png")
 plataforma2.set_position(30, janela.height/2)
+
 # Configuração do primeiro personagem
 personagem1 = Sprite("./Assets/personagens/Elemental_fire.png", frames=52)
 personagem1.set_position(plataforma1.x, janela.height - plataforma1.y-60)
@@ -105,10 +120,8 @@ personagem1.set_curr_frame(0)
 
 # Configuração do segundo personagem
 personagem2 = Sprite("./Assets/personagens/Elemental_water.png", frames=52)
-personagem2.set_position(janela.width / 2 + 100, janela.height - personagem2.height - 30)
+personagem2.set_position(janela.width / 2 + 100, janela.height - plataforma1.y - 60)
 personagem2.set_curr_frame(0)
-personagem2 = Sprite("./Assets/personagens/Elemental_water.png", frames=52)
-
 
 velocidade = 100
 gravidade = 1000
@@ -140,11 +153,11 @@ while True:
         personagem1, teclado, keys_personagem1, virado1, direcao1, atacando1, velocidade_y1, no_chao1, delta_time
     )
 
-    #Controle do segundo personagem
+    # Controle do segundo personagem
     virado2, direcao2, atacando2, velocidade_y2, no_chao2 = controlar_personagem(
         personagem2, teclado, keys_personagem2, virado2, direcao2, atacando2, velocidade_y2, no_chao2, delta_time
     )
-    print(personagem2.get_curr_frame() )
+
     fundo.draw()
     plataforma1.draw()
     plataforma2.draw()
