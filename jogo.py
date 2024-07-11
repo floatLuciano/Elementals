@@ -3,7 +3,26 @@ from PPlay.sprite import *
 from PPlay.keyboard import *
 from PPlay.gameimage import *
 
-def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, velocidade_y, no_chao, delta_time):
+def create_sword_hitbox(personagem, virado):
+    # Definir uma hitbox específica para a espada baseada na posição e direção do personagem
+    sword_hitbox = None
+    if virado == "RIGHT":
+        sword_hitbox = [personagem.x + 40, personagem.y + 10, 20, 10]  # Ajuste essas dimensões conforme necessário
+    elif virado == "LEFT":
+        sword_hitbox = [personagem.x - 20, personagem.y + 10, 20, 10]  # Ajuste essas dimensões conforme necessário
+    return sword_hitbox
+
+def is_attack_frame(personagem, attack_frames):
+    curr_frame = personagem.get_curr_frame()
+    return curr_frame in attack_frames
+
+def hitbox_collided(hitbox1, hitbox2):
+    # Verifica a colisão entre duas hitboxes (x, y, largura, altura)
+    x1, y1, w1, h1 = hitbox1
+    x2, y2, w2, h2 = hitbox2
+    return not (x1 + w1 < x2 or x1 > x2 + w2 or y1 + h1 < y2 or y1 > y2 + h2)
+
+def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, velocidade_y, no_chao, delta_time, opponent):
     andou = False
     estado_anterior_no_chao = no_chao
 
@@ -101,7 +120,21 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
             personagem.set_total_duration(1500)
             personagem.play()
 
-    # print(f'X: {personagem.x}, Y: {personagem.y}, No Chão: {no_chao}')
+    # Verificação de colisão durante os frames de ataque
+    if atacando:
+        attack_frames_right = [26, 27]
+        attack_frames_left = [32, 33]
+        if virado == "RIGHT" and is_attack_frame(personagem, attack_frames_right):
+            sword_hitbox = create_sword_hitbox(personagem, virado)
+            opponent_hitbox = [opponent.x, opponent.y, opponent.width, opponent.height]
+            if hitbox_collided(sword_hitbox, opponent_hitbox):
+                print("Acertou o oponente com a espada!")
+        elif virado == "LEFT" and is_attack_frame(personagem, attack_frames_left):
+            sword_hitbox = create_sword_hitbox(personagem, virado)
+            opponent_hitbox = [opponent.x, opponent.y, opponent.width, opponent.height]
+            if hitbox_collided(sword_hitbox, opponent_hitbox):
+                print("Acertou o oponente com a espada!")
+
     return virado, direcao, atacando, velocidade_y, no_chao
 
 janela = Window(800, 400)
@@ -133,14 +166,16 @@ direcao1 = None
 atacando1 = False
 velocidade_y1 = 0
 no_chao1 = True
-
+vida1=3
+porcentagem2=0
 # Variáveis para o segundo personagem
 virado2 = None
 direcao2 = None
 atacando2 = False
 velocidade_y2 = 0
 no_chao2 = True
-
+vida2=3
+porcentagem2=0
 # Teclas de controle para cada personagem
 keys_personagem1 = {"right": "RIGHT", "left": "LEFT", "attack": "Z", "jump": "UP"}
 keys_personagem2 = {"right": "D", "left": "A", "attack": "N", "jump": "W"}
@@ -150,12 +185,12 @@ while True:
 
     # Controle do primeiro personagem
     virado1, direcao1, atacando1, velocidade_y1, no_chao1 = controlar_personagem(
-        personagem1, teclado, keys_personagem1, virado1, direcao1, atacando1, velocidade_y1, no_chao1, delta_time
+        personagem1, teclado, keys_personagem1, virado1, direcao1, atacando1, velocidade_y1, no_chao1, delta_time, personagem2
     )
 
     # Controle do segundo personagem
     virado2, direcao2, atacando2, velocidade_y2, no_chao2 = controlar_personagem(
-        personagem2, teclado, keys_personagem2, virado2, direcao2, atacando2, velocidade_y2, no_chao2, delta_time
+        personagem2, teclado, keys_personagem2, virado2, direcao2, atacando2, velocidade_y2, no_chao2, delta_time, personagem1
     )
 
     fundo.draw()
