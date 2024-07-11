@@ -4,12 +4,12 @@ from PPlay.keyboard import *
 from PPlay.gameimage import *
 
 def create_sword_hitbox(personagem, virado):
-    # Definir uma hitbox específica para a espada baseada na posição e direção do personagem
+    #to do: melhorar hitbox
     sword_hitbox = None
     if virado == "RIGHT":
-        sword_hitbox = [personagem.x + 40, personagem.y + 10, 20, 10]  # Ajuste essas dimensões conforme necessário
+        sword_hitbox = [personagem.x + 40, personagem.y + 10, 20, 10]  
     elif virado == "LEFT":
-        sword_hitbox = [personagem.x - 20, personagem.y + 10, 20, 10]  # Ajuste essas dimensões conforme necessário
+        sword_hitbox = [personagem.x - 20, personagem.y + 10, 20, 10]
     return sword_hitbox
 
 def is_attack_frame(personagem, attack_frames):
@@ -17,26 +17,22 @@ def is_attack_frame(personagem, attack_frames):
     return curr_frame in attack_frames
 
 def hitbox_collided(hitbox1, hitbox2):
-    # Verifica a colisão entre duas hitboxes (x, y, largura, altura)
     x1, y1, w1, h1 = hitbox1
     x2, y2, w2, h2 = hitbox2
     return not (x1 + w1 < x2 or x1 > x2 + w2 or y1 + h1 < y2 or y1 > y2 + h2)
 
-def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, velocidade_y, no_chao, delta_time, opponent):
+def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, velocidade_y, no_chao, delta_time, opponent, janela, vidas, porcentagem):
     andou = False
     estado_anterior_no_chao = no_chao
 
-    # Verificação de colisão com a plataforma
     if (personagem.collided_perfect(plataforma1) == False) and (personagem.collided_perfect(plataforma2) == False):
         no_chao = False
     else:
         no_chao = True
 
-    # Verificação adicional de coordenadas
     if personagem.y >= 165 and personagem.x <= 103:
         no_chao = False
 
-    # Controle do movimento horizontal e ataque
     if teclado.key_pressed(keys["right"]) and not atacando:
         personagem.move_x(velocidade * delta_time)
         if direcao != "RIGHT":
@@ -75,7 +71,6 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
         velocidade_y = velocidade_pulo
         no_chao = False
 
-    # Aplicação da gravidade e ajuste das sequências de frames
     if no_chao == False:
         velocidade_y += gravidade * delta_time
         personagem.move_y(velocidade_y * delta_time)
@@ -90,7 +85,6 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
             elif virado == "LEFT":
                 personagem.set_sequence(23, 24, False)
 
-    # Verifica se a animação de ataque terminou
     if atacando:
         personagem.update()
         if (personagem.get_curr_frame() == 28) or (personagem.get_curr_frame() == 33):
@@ -105,7 +99,6 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
         if andou:
             personagem.update()
 
-    # Ajusta a animação quando o personagem aterrissa
     if no_chao and not estado_anterior_no_chao:
         if virado == "RIGHT":
             personagem.set_curr_frame(0)
@@ -120,7 +113,6 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
             personagem.set_total_duration(1500)
             personagem.play()
 
-    # Verificação de colisão durante os frames de ataque
     if atacando:
         attack_frames_right = [26, 27]
         attack_frames_left = [32, 33]
@@ -135,7 +127,30 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, v
             if hitbox_collided(sword_hitbox, opponent_hitbox):
                 print("Acertou o oponente com a espada!")
 
-    return virado, direcao, atacando, velocidade_y, no_chao
+    # Verificar se o personagem saiu da tela
+    if personagem.x < -100 or personagem.x > janela.width + 100 or personagem.y < -100 or personagem.y > janela.height + 100:
+        personagem.set_position(janela.width / 2 - personagem.width / 2, janela.height / 2 - personagem.height / 2)
+        vidas -= 1
+        porcentagem = 0
+
+    return virado, direcao, atacando, velocidade_y, no_chao, vidas, porcentagem
+
+def draw_text(text, x, y, size, color, janela):
+    janela.draw_text(text, x, y, size=size, color=color, font_name="Arial", bold=True)
+    
+def get_percentage_color(percentage):
+    if 0 <= percentage <= 19:
+        return "white"
+    elif 20 <= percentage <= 29:
+        return "beige"
+    elif 30 <= percentage <= 69:
+        return "yellow"
+    elif 70 <= percentage <= 99:
+        return "orange"
+    elif 100 <= percentage <= 150:
+        return "red"
+    else:
+        return "white"
 
 janela = Window(800, 400)
 janela.set_title("Elementals")
@@ -146,12 +161,10 @@ plataforma1.set_position(janela.width / 2 - 140, janela.height - 110)
 plataforma2 = Sprite ("./Assets/plataforma1_menor.png")
 plataforma2.set_position(30, janela.height/2)
 
-# Configuração do primeiro personagem
 personagem1 = Sprite("./Assets/personagens/Elemental_fire.png", frames=52)
 personagem1.set_position(plataforma1.x, janela.height - plataforma1.y-60)
 personagem1.set_curr_frame(0)
 
-# Configuração do segundo personagem
 personagem2 = Sprite("./Assets/personagens/Elemental_water.png", frames=52)
 personagem2.set_position(janela.width / 2 + 100, janela.height - plataforma1.y - 60)
 personagem2.set_curr_frame(0)
@@ -160,37 +173,34 @@ velocidade = 100
 gravidade = 1000
 velocidade_pulo = -400
 
-# Variáveis para o primeiro personagem
 virado1 = None
 direcao1 = None
 atacando1 = False
 velocidade_y1 = 0
 no_chao1 = True
-vida1=3
-porcentagem2=0
-# Variáveis para o segundo personagem
+vida1 = 3
+porcentagem1 = 0
+
 virado2 = None
 direcao2 = None
 atacando2 = False
 velocidade_y2 = 0
 no_chao2 = True
-vida2=3
-porcentagem2=0
-# Teclas de controle para cada personagem
+vida2 = 3
+porcentagem2 = 0
+
 keys_personagem1 = {"right": "RIGHT", "left": "LEFT", "attack": "Z", "jump": "UP"}
 keys_personagem2 = {"right": "D", "left": "A", "attack": "N", "jump": "W"}
 
 while True:
     delta_time = janela.delta_time()
 
-    # Controle do primeiro personagem
-    virado1, direcao1, atacando1, velocidade_y1, no_chao1 = controlar_personagem(
-        personagem1, teclado, keys_personagem1, virado1, direcao1, atacando1, velocidade_y1, no_chao1, delta_time, personagem2
+    virado1, direcao1, atacando1, velocidade_y1, no_chao1, vida1, porcentagem1 = controlar_personagem(
+        personagem1, teclado, keys_personagem1, virado1, direcao1, atacando1, velocidade_y1, no_chao1, delta_time, personagem2, janela, vida1, porcentagem1
     )
 
-    # Controle do segundo personagem
-    virado2, direcao2, atacando2, velocidade_y2, no_chao2 = controlar_personagem(
-        personagem2, teclado, keys_personagem2, virado2, direcao2, atacando2, velocidade_y2, no_chao2, delta_time, personagem1
+    virado2, direcao2, atacando2, velocidade_y2, no_chao2, vida2, porcentagem2 = controlar_personagem(
+        personagem2, teclado, keys_personagem2, virado2, direcao2, atacando2, velocidade_y2, no_chao2, delta_time, personagem1, janela, vida2, porcentagem2
     )
 
     fundo.draw()
@@ -198,5 +208,11 @@ while True:
     plataforma2.draw()
     personagem1.draw()
     personagem2.draw()
+
+    draw_text(f"Vidas: {vida1}", 10, 10, 24, "white", janela)
+    draw_text(f"  {porcentagem1}%", 10, 40, 30, get_percentage_color(porcentagem1), janela)
+    
+    draw_text(f"Vidas: {vida2}", janela.width - 150, 10, 24, "white", janela)
+    draw_text(f"  {porcentagem2}%", janela.width - 150, 40, 30, get_percentage_color(porcentagem2), janela)
 
     janela.update()
