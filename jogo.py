@@ -6,19 +6,17 @@ from PPlay.gameimage import *
 def create_sword_hitbox(personagem, virado):
     sword_hitbox = None
     if virado == "RIGHT":
-        sword_hitbox = [personagem.x + 40, personagem.y + 10, 20, 10]
+        sword_hitbox = [personagem.x + personagem.width/2, personagem.y + personagem.height/2, personagem.width/4 - 4, personagem.height/2]
     elif virado == "LEFT":
-        sword_hitbox = [personagem.x - 20, personagem.y + 10, 20, 10]
-    return sword_hitbox
+        sword_hitbox = [personagem.x + personagem.width/4 + 4, personagem.y + personagem.height/2, personagem.width/4 - 4, personagem.height/2]
+    return pygame.Rect(sword_hitbox)
+
+def get_personagem_hitbox(personagem):
+    return pygame.Rect([personagem.x + personagem.width/2 - 10, personagem.y + 2*personagem.height/3, 22, personagem.height/3])
 
 def is_attack_frame(personagem, attack_frames):
     curr_frame = personagem.get_curr_frame()
     return curr_frame in attack_frames
-
-def hitbox_collided(hitbox1, hitbox2):
-    x1, y1, w1, h1 = hitbox1
-    x2, y2, w2, h2 = hitbox2
-    return not (x1 + w1 < x2 or x1 > x2 + w2 or y1 + h1 < y2 or y1 > y2 + h2)
 
 def aplicar_knockback(personagem, virado, knockback_force):
     if virado == "RIGHT":
@@ -120,8 +118,8 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, t
             attack_frames_left = [32, 33]
             if virado == "RIGHT" and is_attack_frame(personagem, attack_frames_right) and not golpe_contado:
                 sword_hitbox = create_sword_hitbox(personagem, virado)
-                opponent_hitbox = [opponent.x, opponent.y, opponent.width, opponent.height]
-                if hitbox_collided(sword_hitbox, opponent_hitbox):
+                opponent_hitbox = get_personagem_hitbox(opponent)
+                if sword_hitbox.colliderect(opponent_hitbox):
                     if not danificado:
                         opponent.set_sequence(45, 49, False)  # Animação para golpe pela esquerda
                         opponent.set_total_duration(1000)
@@ -133,8 +131,8 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, t
                     golpe_contado = True
             elif virado == "LEFT" and is_attack_frame(personagem, attack_frames_left) and not golpe_contado:
                 sword_hitbox = create_sword_hitbox(personagem, virado)
-                opponent_hitbox = [opponent.x, opponent.y, opponent.width, opponent.height]
-                if hitbox_collided(sword_hitbox, opponent_hitbox):
+                opponent_hitbox = opponent_hitbox = get_personagem_hitbox(opponent)
+                if sword_hitbox.colliderect(opponent_hitbox):
                     if not danificado:
                         opponent.set_sequence(49, 52, False)  # Animação para golpe pela direita
                         opponent.set_total_duration(1000)
