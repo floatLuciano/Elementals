@@ -6,7 +6,7 @@ from PPlay.gameimage import *
 def create_sword_hitbox(personagem, virado):
     sword_hitbox = None
     if virado == "RIGHT":
-        sword_hitbox = [personagem.x + 40, personagem.y + 10, 20, 10]  
+        sword_hitbox = [personagem.x + 40, personagem.y + 10, 20, 10]
     elif virado == "LEFT":
         sword_hitbox = [personagem.x - 20, personagem.y + 10, 20, 10]
     return sword_hitbox
@@ -20,7 +20,13 @@ def hitbox_collided(hitbox1, hitbox2):
     x2, y2, w2, h2 = hitbox2
     return not (x1 + w1 < x2 or x1 > x2 + w2 or y1 + h1 < y2 or y1 > y2 + h2)
 
-def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, tempo_recarga, velocidade_y, no_chao, delta_time, opponent, janela, vidas, porcentagem, golpe_contado, pulo_duplo_disponivel, pulou_antes):
+def aplicar_knockback(personagem, virado, knockback_force):
+    if virado == "RIGHT":
+        personagem.move_x(knockback_force)
+    elif virado == "LEFT":
+        personagem.move_x(-knockback_force)
+
+def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, tempo_recarga, velocidade_y, no_chao, delta_time, opponent, vidas, porcentagem, golpe_contado, pulo_duplo_disponivel, pulou_antes, danificado, knockback_timer, opponent_porcentagem):
     andou = False
     estado_anterior_no_chao = no_chao
 
@@ -74,9 +80,9 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, t
     if teclado.key_pressed(keys["jump"]) and not pulou_antes:
         if no_chao or pulo_duplo_disponivel > 0:
             if velocidade_y == 0 or pulo_duplo_disponivel == 2:
-                velocidade_y = velocidade_pulo
+                velocidade_y = velocidade_pulo * (1 - porcentagem / 100)  # Aplicar o multiplicador da porcentagem
             else:
-                velocidade_y = velocidade_pulo  # Dar o segundo pulo
+                velocidade_y = velocidade_pulo * (1 - porcentagem / 100)  # Dar o segundo pulo com o multiplicador
             no_chao = False
             pulo_duplo_disponivel -= 1
             print(f"Pulo duplo disponível: {pulo_duplo_disponivel}")  # Print de depuração
@@ -116,17 +122,37 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, t
                 sword_hitbox = create_sword_hitbox(personagem, virado)
                 opponent_hitbox = [opponent.x, opponent.y, opponent.width, opponent.height]
                 if hitbox_collided(sword_hitbox, opponent_hitbox):
+                    if not danificado:
+                        opponent.set_sequence(45, 49, False)  # Animação para golpe pela esquerda
+                        opponent.set_total_duration(1000)
+                        opponent_porcentagem += 10  # Aumentar a porcentagem do oponente
+                        danificado = True
+                        knockback_timer = 0.2  # Aplicar knockback por 0.2 segundos
+                        aplicar_knockback(opponent, virado, 10 + opponent_porcentagem * 0.1)
                     print("Acertou o oponente com a espada!")
                     golpe_contado = True
             elif virado == "LEFT" and is_attack_frame(personagem, attack_frames_left) and not golpe_contado:
                 sword_hitbox = create_sword_hitbox(personagem, virado)
                 opponent_hitbox = [opponent.x, opponent.y, opponent.width, opponent.height]
                 if hitbox_collided(sword_hitbox, opponent_hitbox):
+                    if not danificado:
+                        opponent.set_sequence(49, 52, False)  # Animação para golpe pela direita
+                        opponent.set_total_duration(1000)
+                        opponent_porcentagem += 10  # Aumentar a porcentagem do oponente
+                        danificado = True
+                        knockback_timer = 0.2  # Aplicar knockback por 0.2 segundos
+                        aplicar_knockback(opponent, virado, 10 + opponent_porcentagem * 0.1)
                     print("Acertou o oponente com a espada!")
                     golpe_contado = True
     else:
         if andou:
             personagem.update()
+
+    if knockback_timer > 0:
+        knockback_timer -= delta_time
+
+    if danificado and knockback_timer <= 0:
+        danificado = False
 
     if no_chao and not estado_anterior_no_chao:
         if virado == "RIGHT":
@@ -148,11 +174,9 @@ def controlar_personagem(personagem, teclado, keys, virado, direcao, atacando, t
         vidas -= 1
         porcentagem = 0
 
-    # Atualizar o tempo de recarga
-    if tempo_recarga > 0:
-        tempo_recarga -= delta_time
+    tempo_recarga -= delta_time
 
-    return virado, direcao, atacando, tempo_recarga, velocidade_y, no_chao, vidas, porcentagem, golpe_contado, pulo_duplo_disponivel, pulou_antes
+    return virado, direcao, atacando, tempo_recarga, velocidade_y, no_chao, vidas, porcentagem, golpe_contado, pulo_duplo_disponivel, pulou_antes, danificado, knockback_timer, opponent_porcentagem
 
 def draw_text(text, x, y, size, color, janela):
     janela.draw_text(text, x, y, size=size, color=color, font_name="Arial", bold=True)
@@ -203,6 +227,8 @@ porcentagem1 = 0
 golpe_contado1 = False
 pulo_duplo_disponivel1 = 2
 pulou_antes1 = False
+danificado1 = False
+knockback_timer1 = 0
 
 virado2 = None
 direcao2 = None
@@ -215,32 +241,35 @@ porcentagem2 = 0
 golpe_contado2 = False
 pulo_duplo_disponivel2 = 2
 pulou_antes2 = False
+danificado2 = False
+knockback_timer2 = 0
 
 teclas_personagem1 = {
     "left": "A",
     "right": "D",
     "jump": "W",
-    "attack": "SPACE"
+    "attack": "N"
 }
 
 teclas_personagem2 = {
     "left": "LEFT",
     "right": "RIGHT",
     "jump": "UP",
-    "attack": "ENTER"
+    "attack": "Z"
 }
 
 while True:
+    delta_time = janela.delta_time()
     janela.update()
     fundo.draw()
     plataforma1.draw()
     plataforma2.draw()
 
-    virado1, direcao1, atacando1, tempo_recarga1, velocidade_y1, no_chao1, vidas1, porcentagem1, golpe_contado1, pulo_duplo_disponivel1, pulou_antes1 = controlar_personagem(
-        personagem1, teclado, teclas_personagem1, virado1, direcao1, atacando1, tempo_recarga1, velocidade_y1, no_chao1, janela.delta_time(), personagem2, janela, vidas1, porcentagem1, golpe_contado1, pulo_duplo_disponivel1, pulou_antes1)
+    virado1, direcao1, atacando1, tempo_recarga1, velocidade_y1, no_chao1, vidas1, porcentagem1, golpe_contado1, pulo_duplo_disponivel1, pulou_antes1, danificado1, knockback_timer1, porcentagem2 = controlar_personagem(
+        personagem1, teclado, teclas_personagem1, virado1, direcao1, atacando1, tempo_recarga1, velocidade_y1, no_chao1, delta_time, personagem2, vidas1, porcentagem1, golpe_contado1, pulo_duplo_disponivel1, pulou_antes1, danificado1, knockback_timer1, porcentagem2)
 
-    virado2, direcao2, atacando2, tempo_recarga2, velocidade_y2, no_chao2, vidas2, porcentagem2, golpe_contado2, pulo_duplo_disponivel2, pulou_antes2 = controlar_personagem(
-        personagem2, teclado, teclas_personagem2, virado2, direcao2, atacando2, tempo_recarga2, velocidade_y2, no_chao2, janela.delta_time(), personagem1, janela, vidas2, porcentagem2, golpe_contado2, pulo_duplo_disponivel2, pulou_antes2)
+    virado2, direcao2, atacando2, tempo_recarga2, velocidade_y2, no_chao2, vidas2, porcentagem2, golpe_contado2, pulo_duplo_disponivel2, pulou_antes2, danificado2, knockback_timer2, porcentagem1 = controlar_personagem(
+        personagem2, teclado, teclas_personagem2, virado2, direcao2, atacando2, tempo_recarga2, velocidade_y2, no_chao2, delta_time, personagem1, vidas2, porcentagem2, golpe_contado2, pulo_duplo_disponivel2, pulou_antes2, danificado2, knockback_timer2, porcentagem1)
 
     draw_text(f"Vidas: {vidas1}", 10, 10, 20, "white", janela)
     draw_text(f"    {porcentagem1}%", 10, 30, 30, get_percentage_color(porcentagem1), janela)
@@ -250,3 +279,8 @@ while True:
 
     personagem1.draw()
     personagem2.draw()
+
+    if teclado.key_pressed("ESC"):
+        break
+
+janela.close()
